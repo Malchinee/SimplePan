@@ -3,6 +3,8 @@ package top.malchinee.simplepan.controller;
 import java.io.IOException;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import top.malchinee.simplepan.entity.constants.Constants;
 import top.malchinee.simplepan.entity.dto.CreateImageCode;
 import top.malchinee.simplepan.entity.vo.ResponseVO;
@@ -21,6 +23,8 @@ import javax.servlet.http.HttpSession;
  */
 @RestController("userInfoController")
 public class AccountController extends ABaseController{
+
+	private Logger logger = LoggerFactory.getLogger(AccountController.class);
 
 	@Resource
 	private UserInfoService userInfoService;
@@ -47,6 +51,8 @@ public class AccountController extends ABaseController{
 	@RequestMapping("/sendEmailCode")
 	public ResponseVO sendEmailCode(HttpSession session, String email, String checkCode, Integer type) {
 		try {
+			logger.info("code:{}", checkCode);
+			logger.info("session:{}", (String)session.getAttribute(Constants.CHECK_CODE_KEY_EMAIL));
 			if(!checkCode.equalsIgnoreCase((String)session.getAttribute(Constants.CHECK_CODE_KEY_EMAIL))) {
 				throw new BusinessException("图片验证码不正确");
 			}

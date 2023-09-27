@@ -4,12 +4,21 @@ import java.util.Date;
 import java.util.List;
 
 import javax.annotation.Resource;
+import javax.mail.internet.MimeMessage;
 
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 import org.springframework.transaction.annotation.Transactional;
+import top.malchinee.simplepan.component.RedisComponent;
+import top.malchinee.simplepan.component.RedisUtils;
+import top.malchinee.simplepan.entity.config.AppConfig;
 import top.malchinee.simplepan.entity.constants.Constants;
+import top.malchinee.simplepan.entity.dto.SysSettingsDto;
 import top.malchinee.simplepan.entity.enums.PageSize;
 import top.malchinee.simplepan.entity.po.UserInfo;
 import top.malchinee.simplepan.entity.query.EmailCodeQuery;
@@ -30,11 +39,22 @@ import top.malchinee.simplepan.utils.StringTools;
 @Service("emailCodeService")
 public class EmailCodeServiceImpl implements EmailCodeService {
 
+	private static final Logger logger = LoggerFactory.getLogger(EmailCodeServiceImpl.class);
+
 	@Resource
 	private EmailCodeMapper<EmailCode, EmailCodeQuery> emailCodeMapper;
 
 	@Resource
 	private UserInfoMapper<UserInfo, UserInfoQuery> userInfoMapper;
+
+	@Resource
+	private JavaMailSender javaMailSender;
+
+	@Resource
+	private AppConfig appConfig;
+
+	@Resource
+	private RedisComponent redisComponent;
 
 	/**
 	 * 根据条件查询列表
@@ -173,7 +193,8 @@ public class EmailCodeServiceImpl implements EmailCodeService {
 
 		String code = StringTools.getRandomNumber(Constants.LENGTH_5);
 
-		// TODO 发送验证码
+		// 发送验证码
+		sendEmailCode(email, code);
 		// 将之前的验证码置为无效
 		emailCodeMapper.disableEmailCode(email);
 
@@ -186,5 +207,21 @@ public class EmailCodeServiceImpl implements EmailCodeService {
 		emailCodeMapper.insert(emailCode);
 	}
 
+	private void sendEmailCode(String toEmail, String code) {
+		try {
+			MimeMessage mimeMessage = javaMailSender.createMimeMessage();
+			MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true);
+			helper.setFrom(appConfig.getSendUserName());
+			helper.setTo(toEmail);
 
+			SysSettingsDto sysSettingsDto = redisComponent.getSysSettingsDto();
+			helper.setSubject(sysSettingsDto.getRegisterMailTitle());
+			helper.setText(String.format(sysSettingsDto.getRegisterEmailContent(), code));
+			helper.setSentDate(new Date());
+			javaMailSender.send(mimeMessage);
+		}catch (Exception e) {
+			logger.error("邮件发送失败", e);
+			throw new BusinessException("邮件发送失败");
+		}
+	}
 }
