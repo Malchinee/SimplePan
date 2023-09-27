@@ -91,7 +91,6 @@ public class UserInfoServiceImpl implements UserInfoService {
 	 */
 	@Override
 	public Integer updateByParam(UserInfo bean, UserInfoQuery param) {
-		StringTools.checkParam(param);
 		return this.userInfoMapper.updateByParam(bean, param);
 	}
 
@@ -100,7 +99,6 @@ public class UserInfoServiceImpl implements UserInfoService {
 	 */
 	@Override
 	public Integer deleteByParam(UserInfoQuery param) {
-		StringTools.checkParam(param);
 		return this.userInfoMapper.deleteByParam(param);
 	}
 
