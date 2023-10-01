@@ -5,6 +5,8 @@ import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import top.malchinee.simplepan.annotation.GlobalInterceptor;
+import top.malchinee.simplepan.annotation.VerifyParam;
 import top.malchinee.simplepan.entity.constants.Constants;
 import top.malchinee.simplepan.entity.dto.CreateImageCode;
 import top.malchinee.simplepan.entity.vo.ResponseVO;
@@ -49,10 +51,10 @@ public class AccountController extends ABaseController{
 	}
 
 	@RequestMapping("/sendEmailCode")
-	public ResponseVO sendEmailCode(HttpSession session, String email, String checkCode, Integer type) {
+	@GlobalInterceptor(checkParams = true)
+	public ResponseVO sendEmailCode(HttpSession session, @VerifyParam(required = true) String email,
+									@VerifyParam(required = true) String checkCode, @VerifyParam(required = true) Integer type) {
 		try {
-			logger.info("code:{}", checkCode);
-			logger.info("session:{}", (String)session.getAttribute(Constants.CHECK_CODE_KEY_EMAIL));
 			if(!checkCode.equalsIgnoreCase((String)session.getAttribute(Constants.CHECK_CODE_KEY_EMAIL))) {
 				throw new BusinessException("图片验证码不正确");
 			}
