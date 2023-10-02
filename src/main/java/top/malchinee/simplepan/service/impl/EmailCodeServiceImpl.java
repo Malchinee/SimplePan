@@ -207,7 +207,19 @@ public class EmailCodeServiceImpl implements EmailCodeService {
 		emailCodeMapper.insert(emailCode);
 	}
 
-	private void sendEmailCode(String toEmail, String code) {
+    @Override
+    public void checkCode(String email, String code) {
+        EmailCode emailCode = this.emailCodeMapper.selectByEmailAndCode(email, code);
+		if(null == emailCode) {
+			throw new BusinessException("邮箱验证码不正确");
+		}
+		if(emailCode.getStatus() == 1 || System.currentTimeMillis() - emailCode.getCreateTime().getTime() > Constants.LENGTH_15 * 1000 * 60) {
+			throw new BusinessException("邮箱验证码过期");
+		}
+		emailCodeMapper.disableEmailCode(email);
+    }
+
+    private void sendEmailCode(String toEmail, String code) {
 		try {
 			MimeMessage mimeMessage = javaMailSender.createMimeMessage();
 			MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true);

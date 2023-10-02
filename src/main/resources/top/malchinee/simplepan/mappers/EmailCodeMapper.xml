@@ -284,4 +284,8 @@
 		select <include refid="base_column_list" /> from email_code where email=#{email}
 	</select>
 
+    <select id="selectByEmailAndCode" resultMap="base_result_map">
+		select email, code ,create_time, status from email_code where email = #{email} and code = #{code}
+	</select>
+
 </mapper>

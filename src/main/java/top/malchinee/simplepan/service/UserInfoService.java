@@ -2,6 +2,7 @@ package top.malchinee.simplepan.service;
 
 import java.util.List;
 
+import top.malchinee.simplepan.entity.dto.SessionWebUserDto;
 import top.malchinee.simplepan.entity.query.UserInfoQuery;
 import top.malchinee.simplepan.entity.po.UserInfo;
 import top.malchinee.simplepan.entity.vo.PaginationResultVO;
@@ -122,5 +123,22 @@ public interface UserInfoService {
 	 * 根据QqOpenId删除
 	 */
 	Integer deleteUserInfoByQqOpenId(String qqOpenId);
+
+	/**
+	 * 注册
+	 * @param email
+	 * @param nickName
+	 * @param password
+	 * @param emailCode
+	 */
+	void register(String email, String nickName, String password, String emailCode);
+
+	/**
+	 * 登录
+	 * @param email
+	 * @param password
+	 * @return
+	 */
+	SessionWebUserDto login(String email, String password);
 
 }

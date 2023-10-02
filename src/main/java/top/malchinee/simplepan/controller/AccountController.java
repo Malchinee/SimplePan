@@ -9,6 +9,8 @@ import top.malchinee.simplepan.annotation.GlobalInterceptor;
 import top.malchinee.simplepan.annotation.VerifyParam;
 import top.malchinee.simplepan.entity.constants.Constants;
 import top.malchinee.simplepan.entity.dto.CreateImageCode;
+import top.malchinee.simplepan.entity.dto.SessionWebUserDto;
+import top.malchinee.simplepan.entity.enums.VerifyRegexEnum;
 import top.malchinee.simplepan.entity.vo.ResponseVO;
 import top.malchinee.simplepan.exception.BusinessException;
 import top.malchinee.simplepan.service.EmailCodeService;
@@ -52,8 +54,10 @@ public class AccountController extends ABaseController{
 
 	@RequestMapping("/sendEmailCode")
 	@GlobalInterceptor(checkParams = true)
-	public ResponseVO sendEmailCode(HttpSession session, @VerifyParam(required = true) String email,
-									@VerifyParam(required = true) String checkCode, @VerifyParam(required = true) Integer type) {
+	public ResponseVO sendEmailCode(HttpSession session,
+									@VerifyParam(required = true, regex = VerifyRegexEnum.EMAIL, max = 150) String email,
+									@VerifyParam(required = true) String checkCode,
+									@VerifyParam(required = true) Integer type) {
 		try {
 			if(!checkCode.equalsIgnoreCase((String)session.getAttribute(Constants.CHECK_CODE_KEY_EMAIL))) {
 				throw new BusinessException("图片验证码不正确");
@@ -62,6 +66,43 @@ public class AccountController extends ABaseController{
 			return getSuccessResponseVO(null);
 		}finally {
 			session.removeAttribute(Constants.CHECK_CODE_KEY_EMAIL);
+		}
+	}
+
+	@RequestMapping("/register")
+	@GlobalInterceptor(checkParams = true)
+	public ResponseVO register(HttpSession session,
+							   @VerifyParam(required = true, regex = VerifyRegexEnum.EMAIL, max = 150) String email,
+							   @VerifyParam(required = true) String nickName,
+							   @VerifyParam(required = true, regex = VerifyRegexEnum.PASSWORD, min = 8, max = 18) String password,
+							   @VerifyParam(required = true) String checkCode,
+							   @VerifyParam(required = true) String emailCode) {
+		try {
+			if(!checkCode.equalsIgnoreCase((String)session.getAttribute(Constants.CHECK_CODE_KEY))) {
+				throw new BusinessException("图片验证码不正确");
+			}
+			userInfoService.register(email, nickName, password, emailCode);
+			return getSuccessResponseVO(null);
+		}finally {
+			session.removeAttribute(Constants.CHECK_CODE_KEY);
+		}
+	}
+
+	@RequestMapping("/login")
+	@GlobalInterceptor(checkParams = true)
+	public ResponseVO login(HttpSession session,
+							   @VerifyParam(required = true) String email,
+							   @VerifyParam(required = true) String password,
+							   @VerifyParam(required = true) String checkCode) {
+		try {
+			if(!checkCode.equalsIgnoreCase((String)session.getAttribute(Constants.CHECK_CODE_KEY))) {
+				throw new BusinessException("图片验证码不正确");
+			}
+			SessionWebUserDto sessionWebUserDto = userInfoService.login(email, password);
+			session.setAttribute(Constants.SESSION_KEY, sessionWebUserDto);
+			return getSuccessResponseVO(sessionWebUserDto);
+		}finally {
+			session.removeAttribute(Constants.CHECK_CODE_KEY);
 		}
 	}
 }

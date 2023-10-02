@@ -1,17 +1,29 @@
 package top.malchinee.simplepan.service.impl;
 
+import java.util.Date;
 import java.util.List;
 
 import javax.annotation.Resource;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.springframework.stereotype.Service;
 
+import org.springframework.transaction.annotation.Transactional;
+import top.malchinee.simplepan.component.RedisComponent;
+import top.malchinee.simplepan.entity.config.AppConfig;
+import top.malchinee.simplepan.entity.constants.Constants;
+import top.malchinee.simplepan.entity.dto.SessionWebUserDto;
+import top.malchinee.simplepan.entity.dto.SysSettingsDto;
+import top.malchinee.simplepan.entity.dto.UserSpaceDto;
 import top.malchinee.simplepan.entity.enums.PageSize;
+import top.malchinee.simplepan.entity.enums.UserStatusEnum;
 import top.malchinee.simplepan.entity.query.UserInfoQuery;
 import top.malchinee.simplepan.entity.po.UserInfo;
 import top.malchinee.simplepan.entity.vo.PaginationResultVO;
 import top.malchinee.simplepan.entity.query.SimplePage;
+import top.malchinee.simplepan.exception.BusinessException;
 import top.malchinee.simplepan.mappers.UserInfoMapper;
+import top.malchinee.simplepan.service.EmailCodeService;
 import top.malchinee.simplepan.service.UserInfoService;
 import top.malchinee.simplepan.utils.StringTools;
 
@@ -24,6 +36,15 @@ public class UserInfoServiceImpl implements UserInfoService {
 
 	@Resource
 	private UserInfoMapper<UserInfo, UserInfoQuery> userInfoMapper;
+
+	@Resource
+	private EmailCodeService emailCodeService;
+
+	@Resource
+	private RedisComponent redisComponent;
+
+	@Resource
+	private AppConfig appConfig;
 
 	/**
 	 * 根据条件查询列表
@@ -197,4 +218,63 @@ public class UserInfoServiceImpl implements UserInfoService {
 	public Integer deleteUserInfoByQqOpenId(String qqOpenId) {
 		return this.userInfoMapper.deleteByQqOpenId(qqOpenId);
 	}
+
+    @Override
+	@Transactional(rollbackFor = Exception.class)
+    public void register(String email, String nickName, String password, String emailCode) {
+		UserInfo userInfo = this.userInfoMapper.selectByEmail(email);
+		if(null != userInfo) {
+			throw new BusinessException("邮箱账号已经存在");
+		}
+		UserInfo nickNameUser = this.userInfoMapper.selectByNickName(nickName);
+		if(null != nickNameUser) {
+			throw new BusinessException("昵称已经存在");
+		}
+		// 校验邮箱验证码
+		emailCodeService.checkCode(email, emailCode);
+
+		String userId = StringTools.getRandomNumber(Constants.LENGTH_10);
+		userInfo = new UserInfo();
+		userInfo.setUserId(userId);
+		userInfo.setEmail(email);
+		userInfo.setPassword(StringTools.encodeByMd5(password));
+		userInfo.setNickName(nickName);
+
+		userInfo.setJoinTime(new Date());
+		userInfo.setStatus(UserStatusEnum.ENABLE.getStatus());
+		userInfo.setUseSpace(0L);
+		SysSettingsDto sysSettingsDto = redisComponent.getSysSettingsDto();
+		userInfo.setTotalSpace(sysSettingsDto.getUserInitUseSpace() * Constants.MB);
+		this.userInfoMapper.insert(userInfo);
+	}
+
+    @Override
+    public SessionWebUserDto login(String email, String password) {
+
+		UserInfo userInfo = this.userInfoMapper.selectByEmail(email);
+		if(null == userInfo || !userInfo.getPassword().equals(password)) {
+			throw new BusinessException("账号或者密码错误");
+		}
+		if(UserStatusEnum.DISABLE.equals(userInfo.getStatus())) {
+			throw new BusinessException("账号已禁用, 请联系管理员");
+		}
+		UserInfo updateInfo = new UserInfo();
+		updateInfo.setLastLoginTime(new Date());
+		this.userInfoMapper.updateByUserId(updateInfo, userInfo.getUserId());
+
+		SessionWebUserDto sessionWebUserDto = new SessionWebUserDto();
+		sessionWebUserDto.setUserId(userInfo.getUserId());
+		sessionWebUserDto.setNickName(userInfo.getNickName());
+		if(ArrayUtils.contains(appConfig.getAdminEmails().split(","), email)) {
+			sessionWebUserDto.setAdmin(true);
+		}else {
+			sessionWebUserDto.setAdmin(false);
+		}
+		// 用户空间
+		UserSpaceDto userSpaceDto = new UserSpaceDto();
+		// userSpaceDto.setUseSpace();
+		userSpaceDto.setTotalSpace(userSpaceDto.getTotalSpace());
+		redisComponent.saveUserSpaceUse(userInfo.getUserId(), userSpaceDto);
+		return sessionWebUserDto;
+    }
 }

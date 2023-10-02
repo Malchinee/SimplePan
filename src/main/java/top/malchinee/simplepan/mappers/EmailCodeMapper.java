@@ -43,6 +43,14 @@ public interface EmailCodeMapper<T,P> extends BaseMapper<T,P> {
 	 T selectByEmail(@Param("email") String email);
 
 	/**
+	 * 根据Email和code获取对象
+	 * @param email
+	 * @param code
+	 * @return
+	 */
+	 T selectByEmailAndCode(@Param("email") String email, @Param("code") String code);
+
+	/**
 	 *
 	 * @param email
 	 */

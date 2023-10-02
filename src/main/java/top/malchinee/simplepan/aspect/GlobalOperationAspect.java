@@ -47,6 +47,9 @@ public class GlobalOperationAspect {
             if(null == interceptor) {
                 return;
             }
+            /**
+             * 校验参数
+             */
             if(interceptor.checkParams()) {
                 validateParams(method, args);
             }
@@ -60,7 +63,6 @@ public class GlobalOperationAspect {
             logger.error("全局拦截器异常", e);
             throw new BusinessException(ResponseCodeEnum.CODE_500);
         }
-        Object target = point.getTarget();
     }
 
     private void validateParams(Method m, Object[] args) throws BusinessException {

@@ -29,7 +29,7 @@ public class RedisUtils<V> {
         }
     }
 
-    public boolean set(String key, V value, long time) {
+    public boolean setex(String key, V value, long time) {
         try{
             if(time > 0) {
                 redisTemplate.opsForValue().set(key, value, time, TimeUnit.SECONDS);
