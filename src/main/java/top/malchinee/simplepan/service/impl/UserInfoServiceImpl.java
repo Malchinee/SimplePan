@@ -255,7 +255,7 @@ public class UserInfoServiceImpl implements UserInfoService {
 		if(null == userInfo || !userInfo.getPassword().equals(password)) {
 			throw new BusinessException("账号或者密码错误");
 		}
-		if(UserStatusEnum.DISABLE.equals(userInfo.getStatus())) {
+		if(UserStatusEnum.DISABLE.getStatus().equals(userInfo.getStatus())) {
 			throw new BusinessException("账号已禁用, 请联系管理员");
 		}
 		UserInfo updateInfo = new UserInfo();
@@ -272,9 +272,23 @@ public class UserInfoServiceImpl implements UserInfoService {
 		}
 		// 用户空间
 		UserSpaceDto userSpaceDto = new UserSpaceDto();
+		// TODO 查询当前用户已经上传文件大小总和
 		// userSpaceDto.setUseSpace();
 		userSpaceDto.setTotalSpace(userSpaceDto.getTotalSpace());
 		redisComponent.saveUserSpaceUse(userInfo.getUserId(), userSpaceDto);
 		return sessionWebUserDto;
     }
+
+    @Override
+	@Transactional(rollbackFor = Exception.class)
+    public void resetPwd(String email, String password, String emailCode) {
+		UserInfo userInfo = this.userInfoMapper.selectByEmail(email);
+		if(null == userInfo || !userInfo.getPassword().equals(password)) {
+			throw new BusinessException("邮箱账号不存在");
+		}
+		emailCodeService.checkCode(email, emailCode);
+		UserInfo updateInfo = new UserInfo();
+		updateInfo.setPassword(StringTools.encodeByMd5(password));
+		this.userInfoMapper.updateByEmail(updateInfo, email);
+	}
 }
