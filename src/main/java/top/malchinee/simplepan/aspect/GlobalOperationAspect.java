@@ -8,13 +8,19 @@ import org.aspectj.lang.reflect.MethodSignature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import top.malchinee.simplepan.annotation.GlobalInterceptor;
 import top.malchinee.simplepan.annotation.VerifyParam;
+import top.malchinee.simplepan.entity.constants.Constants;
+import top.malchinee.simplepan.entity.dto.SessionWebUserDto;
 import top.malchinee.simplepan.entity.enums.ResponseCodeEnum;
 import top.malchinee.simplepan.exception.BusinessException;
 import top.malchinee.simplepan.utils.StringTools;
 import top.malchinee.simplepan.utils.VerifyUtils;
 
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import javax.swing.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -52,6 +58,13 @@ public class GlobalOperationAspect {
              */
             if(interceptor.checkParams()) {
                 validateParams(method, args);
+            }
+
+            /**
+             * 校验登录
+             */
+            if(interceptor.checkLogin() || interceptor.checkAdmin()) {
+                checkLogin(interceptor.checkAdmin());
             }
         }catch (BusinessException e) {
             logger.error("全局拦截器异常", e);
@@ -127,6 +140,18 @@ public class GlobalOperationAspect {
          */
         if(!isEmpty && !StringTools.isEmpty(verifyParam.regex().getRegex()) && !VerifyUtils.verify(verifyParam.regex(), String.valueOf(value))) {
             throw new BusinessException(ResponseCodeEnum.CODE_600);
+        }
+    }
+
+    private void checkLogin(Boolean checkAdmin) {
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.getRequestAttributes()).getRequest();
+        HttpSession session = request.getSession();
+        SessionWebUserDto userDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
+        if(null == userDto) {
+            throw new BusinessException(ResponseCodeEnum.CODE_901);
+        }
+        if(checkAdmin && !userDto.getAdmin()) {
+            throw new BusinessException(ResponseCodeEnum.CODE_404);
         }
     }
 }

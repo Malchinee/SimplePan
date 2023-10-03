@@ -141,4 +141,11 @@ public interface UserInfoService {
 	 */
 	SessionWebUserDto login(String email, String password);
 
+	/**
+	 * 重置密码
+	 * @param email
+	 * @param password
+	 * @param emailCode
+	 */
+	void resetPwd(String email, String password, String emailCode);
 }
