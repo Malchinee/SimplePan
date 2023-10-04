@@ -148,4 +148,10 @@ public interface UserInfoService {
 	 * @param emailCode
 	 */
 	void resetPwd(String email, String password, String emailCode);
+
+	/**
+	 * qq登录
+	 * @param code
+	 */
+	SessionWebUserDto qqLogin(String code);
 }

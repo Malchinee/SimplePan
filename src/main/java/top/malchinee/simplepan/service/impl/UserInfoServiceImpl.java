@@ -1,17 +1,24 @@
 package top.malchinee.simplepan.service.impl;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Resource;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import org.springframework.transaction.annotation.Transactional;
 import top.malchinee.simplepan.component.RedisComponent;
 import top.malchinee.simplepan.entity.config.AppConfig;
 import top.malchinee.simplepan.entity.constants.Constants;
+import top.malchinee.simplepan.entity.dto.QQInfoDto;
 import top.malchinee.simplepan.entity.dto.SessionWebUserDto;
 import top.malchinee.simplepan.entity.dto.SysSettingsDto;
 import top.malchinee.simplepan.entity.dto.UserSpaceDto;
@@ -25,6 +32,8 @@ import top.malchinee.simplepan.exception.BusinessException;
 import top.malchinee.simplepan.mappers.UserInfoMapper;
 import top.malchinee.simplepan.service.EmailCodeService;
 import top.malchinee.simplepan.service.UserInfoService;
+import top.malchinee.simplepan.utils.JsonUtils;
+import top.malchinee.simplepan.utils.OKHttpUtils;
 import top.malchinee.simplepan.utils.StringTools;
 
 
@@ -33,6 +42,8 @@ import top.malchinee.simplepan.utils.StringTools;
  */
 @Service("userInfoService")
 public class UserInfoServiceImpl implements UserInfoService {
+
+	private static final Logger logger = LoggerFactory.getLogger(UserInfoService.class);
 
 	@Resource
 	private UserInfoMapper<UserInfo, UserInfoQuery> userInfoMapper;
@@ -290,5 +301,126 @@ public class UserInfoServiceImpl implements UserInfoService {
 		UserInfo updateInfo = new UserInfo();
 		updateInfo.setPassword(StringTools.encodeByMd5(password));
 		this.userInfoMapper.updateByEmail(updateInfo, email);
+	}
+
+    @Override
+    public SessionWebUserDto qqLogin(String code) {
+		// 1. 获取通过回调code 获取accessToken
+		String accessToken = getQQAccessToken(code);
+		// 2. 获取qq_openid
+		String openId = getQQOpenId(accessToken);
+		UserInfo user = this.userInfoMapper.selectByQqOpenId(openId);
+
+		String avatar = null;
+		if(user == null) {
+			// 自动注册
+			// 3. 获取用户的qq基本信息
+			QQInfoDto qqUserInfo = getQQUserInfo(accessToken, openId);
+			user = new UserInfo();
+			String nickName = qqUserInfo.getNickName();
+			nickName = nickName.length() > Constants.LENGTH_20 ? nickName.substring(0, Constants.LENGTH_20) : nickName;
+			avatar = StringTools.isEmpty(qqUserInfo.getFigureurl_qq_2()) ? qqUserInfo.getFigureurl_qq_1() : qqUserInfo.getFigureurl_qq_2();
+			Date curDate = new Date();
+			user.setQqOpenId(openId);
+			user.setJoinTime(curDate);
+			user.setNickName(nickName);
+			user.setUserId(StringTools.getRandomNumber(Constants.LENGTH_10));
+			user.setLastLoginTime(curDate);
+			user.setStatus(UserStatusEnum.ENABLE.getStatus());
+			user.setUseSpace(0L);
+			user.setTotalSpace(redisComponent.getSysSettingsDto().getUserInitUseSpace() * Constants.MB);
+			this.userInfoMapper.insert(user);
+			user = userInfoMapper.selectByQqOpenId(openId);
+		}else {
+			UserInfo updateInfo = new UserInfo();
+			updateInfo.setLastLoginTime(new Date());
+			avatar = user.getQqAvatar();
+			this.userInfoMapper.updateByQqOpenId(updateInfo, openId);
+		}
+		SessionWebUserDto sessionWebUserDto = new SessionWebUserDto();
+		sessionWebUserDto.setUserId(user.getUserId());
+		sessionWebUserDto.setNickName(user.getNickName());
+		sessionWebUserDto.setAvatar(avatar);
+
+		if(ArrayUtils.contains(appConfig.getAdminEmails().split(","), user.getEmail() == null ? "" : user.getEmail())) {
+			sessionWebUserDto.setAdmin(true);
+		}else {
+			sessionWebUserDto.setAdmin(false);
+		}
+		UserSpaceDto userSpaceDto = new UserSpaceDto();
+		// TODO 获取用户已使用的空间
+		userSpaceDto.setUseSpace(0L);
+		userSpaceDto.setTotalSpace(user.getTotalSpace());
+		redisComponent.saveUserSpaceUse(user.getUserId(), userSpaceDto);
+		return sessionWebUserDto;
+    }
+
+	private String getQQAccessToken(String code) {
+		String accessToken = null;
+		String url = null;
+		try {
+			url = String.format(appConfig.getQqurlAccessToken(), appConfig.getQqAppId(), appConfig.getQqAppKey(), code, URLEncoder.encode(appConfig.getQqUrlRedirect(),"utf-8"));
+		}catch (UnsupportedEncodingException e) {
+			logger.error("encode失败");
+		}
+		String tokenResult = OKHttpUtils.getRequest(url);
+		if(tokenResult != null || tokenResult.indexOf(Constants.VIEW_OBJ_RESULT_KEY) != -1) {
+			logger.error("获取qqToken失败:{}", tokenResult);
+			throw new BusinessException("获取qqToken失败");
+		}
+		String[] params = tokenResult.split("&");
+		if(params != null && params.length > 0) {
+			for(String p : params) {
+				if(p.indexOf("access_token") != -1) {
+					accessToken = p.split("=")[1];
+					break;
+				}
+			}
+		}
+		return accessToken;
+	}
+
+	private String getQQOpenId(String accessToken) throws BusinessException {
+		// 获取openId
+		String url = String.format(appConfig.getQqUrlOpenId(), accessToken);
+		String openIDResult = OKHttpUtils.getRequest(url);
+		String tmpJson = this.getQQResp(openIDResult);
+		if(tmpJson == null) {
+			logger.error("调qq接口获取openID失败, tempJson:{}", tmpJson);
+			throw new BusinessException("调qq接口获取openID失败");
+		}
+		Map jsonData = JsonUtils.convertJson2Obj(tmpJson, Map.class);
+		if(jsonData == null) {
+			logger.error("调qq接口获取openID失败：{}", jsonData);
+			throw new BusinessException("调qq接口获取openID失败");
+		}
+		return String.valueOf(jsonData.get("openid"));
+	}
+
+	private String getQQResp(String result) {
+		if(StringUtils.isNotBlank(result)) {
+			int pos = result.indexOf("callback");
+			if(pos != -1) {
+				int start = result.indexOf("(");
+				int end = result.indexOf(")");
+				String jsonStr = result.substring(start + 1, end - 1);
+				return jsonStr;
+			}
+		}
+		return null;
+	}
+
+	private QQInfoDto getQQUserInfo(String accessToken, String qqOpenId) throws BusinessException {
+		String url = String.format(appConfig.getQqUrlUserInfo(), accessToken, appConfig.getQqAppId(), qqOpenId);
+		String response = OKHttpUtils.getRequest(url);
+		if(StringUtils.isNotBlank(response)) {
+			QQInfoDto qqInfo = JsonUtils.convertJson2Obj(response, QQInfoDto.class);
+			if(qqInfo.getRet() != 0) {
+				logger.error("qqInfo:{}", response);
+				throw new BusinessException("调qq接口获取用户信息异常");
+			}
+			return qqInfo;
+		}
+		throw new BusinessException("调qq接口获取用户信息异常");
 	}
 }
