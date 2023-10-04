@@ -4,8 +4,10 @@ import org.slf4j.LoggerFactory;
 import top.malchinee.simplepan.entity.constants.Constants;
 import top.malchinee.simplepan.entity.dto.SessionWebUserDto;
 import top.malchinee.simplepan.entity.enums.ResponseCodeEnum;
+import top.malchinee.simplepan.entity.vo.PaginationResultVO;
 import top.malchinee.simplepan.entity.vo.ResponseVO;
 import top.malchinee.simplepan.exception.BusinessException;
+import top.malchinee.simplepan.utils.CopyTools;
 import top.malchinee.simplepan.utils.StringTools;
 
 import javax.servlet.http.HttpServletResponse;
@@ -97,5 +99,15 @@ public class ABaseController {
     protected SessionWebUserDto getUserInfoFromSession(HttpSession session) {
         SessionWebUserDto sessionWebUserDto = (SessionWebUserDto) session.getAttribute(Constants.SESSION_KEY);
         return sessionWebUserDto;
+    }
+
+    protected <S, T> PaginationResultVO<T> convert2PaginationVO(PaginationResultVO<S> result, Class<T> classz) {
+        PaginationResultVO<T> resultVO = new PaginationResultVO<>();
+        resultVO.setList(CopyTools.copyList(result.getList(), classz));
+        resultVO.setPageNo(result.getPageNo());
+        resultVO.setPageSize(result.getPageSize());
+        resultVO.setPageTotal(result.getPageTotal());
+        resultVO.setTotalCount(result.getTotalCount());
+        return resultVO;
     }
 }
