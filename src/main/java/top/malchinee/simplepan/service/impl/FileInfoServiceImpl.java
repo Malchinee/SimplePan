@@ -6,6 +6,9 @@ import javax.annotation.Resource;
 
 import org.springframework.stereotype.Service;
 
+import org.springframework.web.multipart.MultipartFile;
+import top.malchinee.simplepan.entity.dto.SessionWebUserDto;
+import top.malchinee.simplepan.entity.dto.UploadResultDto;
 import top.malchinee.simplepan.entity.enums.PageSize;
 import top.malchinee.simplepan.entity.query.FileInfoQuery;
 import top.malchinee.simplepan.entity.po.FileInfo;
@@ -126,5 +129,10 @@ public class FileInfoServiceImpl implements FileInfoService {
 	@Override
 	public Integer deleteFileInfoByFileIdAndUserId(String fileId, String userId) {
 		return this.fileInfoMapper.deleteByFileIdAndUserId(fileId, userId);
+	}
+
+	@Override
+	public UploadResultDto uploadFile(SessionWebUserDto webUserDto, String fileId, MultipartFile file, String fileName, String filePid, String fileMd5, Integer chunkIndex, Integer chunks) {
+		return null;
 	}
 }
