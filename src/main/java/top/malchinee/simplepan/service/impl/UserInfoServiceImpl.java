@@ -24,11 +24,14 @@ import top.malchinee.simplepan.entity.dto.SysSettingsDto;
 import top.malchinee.simplepan.entity.dto.UserSpaceDto;
 import top.malchinee.simplepan.entity.enums.PageSize;
 import top.malchinee.simplepan.entity.enums.UserStatusEnum;
+import top.malchinee.simplepan.entity.po.FileInfo;
+import top.malchinee.simplepan.entity.query.FileInfoQuery;
 import top.malchinee.simplepan.entity.query.UserInfoQuery;
 import top.malchinee.simplepan.entity.po.UserInfo;
 import top.malchinee.simplepan.entity.vo.PaginationResultVO;
 import top.malchinee.simplepan.entity.query.SimplePage;
 import top.malchinee.simplepan.exception.BusinessException;
+import top.malchinee.simplepan.mappers.FileInfoMapper;
 import top.malchinee.simplepan.mappers.UserInfoMapper;
 import top.malchinee.simplepan.service.EmailCodeService;
 import top.malchinee.simplepan.service.UserInfoService;
@@ -56,6 +59,9 @@ public class UserInfoServiceImpl implements UserInfoService {
 
 	@Resource
 	private AppConfig appConfig;
+
+	@Resource
+	private FileInfoMapper<FileInfo, FileInfoQuery> fileInfoMapper;
 
 	/**
 	 * 根据条件查询列表
@@ -283,9 +289,8 @@ public class UserInfoServiceImpl implements UserInfoService {
 		}
 		// 用户空间
 		UserSpaceDto userSpaceDto = new UserSpaceDto();
-		// TODO 查询当前用户已经上传文件大小总和
-		// userSpaceDto.setUseSpace();
-		userSpaceDto.setUseSpace(0L);
+		Long useSpace = fileInfoMapper.selectUseSpace(userInfo.getUserId());
+		userSpaceDto.setUseSpace(useSpace);
 		userSpaceDto.setTotalSpace(userInfo.getTotalSpace());
 		redisComponent.saveUserSpaceUse(userInfo.getUserId(), userSpaceDto);
 		return sessionWebUserDto;
@@ -349,8 +354,8 @@ public class UserInfoServiceImpl implements UserInfoService {
 			sessionWebUserDto.setAdmin(false);
 		}
 		UserSpaceDto userSpaceDto = new UserSpaceDto();
-		// TODO 获取用户已使用的空间
-		userSpaceDto.setUseSpace(0L);
+		Long useSpace = fileInfoMapper.selectUseSpace(user.getUserId());
+		userSpaceDto.setUseSpace(useSpace);
 		userSpaceDto.setTotalSpace(user.getTotalSpace());
 		redisComponent.saveUserSpaceUse(user.getUserId(), userSpaceDto);
 		return sessionWebUserDto;

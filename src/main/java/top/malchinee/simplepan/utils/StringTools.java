@@ -2,6 +2,7 @@ package top.malchinee.simplepan.utils;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.RandomUtils;
+import top.malchinee.simplepan.entity.constants.Constants;
 import top.malchinee.simplepan.exception.BusinessException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -39,5 +40,29 @@ public class StringTools {
             return false;
         }
         return true;
+    }
+
+    public static String rename(String fileName) {
+        String fileNameReal = getFileNameNoSuffix(fileName);
+        String suffix = getFileSuffix(fileName);
+        return fileNameReal + "_" + getRandomNumber(Constants.LENGTH_5) + suffix;
+    }
+
+    public static String getFileNameNoSuffix(String fileName) {
+        Integer index = fileName.lastIndexOf(".");
+        if(index == -1) {
+            return fileName;
+        }
+        fileName = fileName.substring(0, index);
+        return fileName;
+    }
+
+    public static String getFileSuffix(String fileName) {
+        Integer index = fileName.lastIndexOf(".");
+        if(index == -1) {
+            return "";
+        }
+        String suffix = fileName.substring(index);
+        return suffix;
     }
 }
