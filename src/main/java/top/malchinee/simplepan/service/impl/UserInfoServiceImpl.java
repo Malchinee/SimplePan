@@ -330,7 +330,7 @@ public class UserInfoServiceImpl implements UserInfoService {
 			user.setQqOpenId(openId);
 			user.setJoinTime(curDate);
 			user.setNickName(nickName);
-			user.setUserId(StringTools.getRandomNumber(Constants.LENGTH_10));
+			user.setUserId(StringTools.getRandomString(Constants.LENGTH_10));
 			user.setLastLoginTime(curDate);
 			user.setStatus(UserStatusEnum.ENABLE.getStatus());
 			user.setUseSpace(0L);

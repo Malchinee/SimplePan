@@ -19,6 +19,10 @@ public class StringTools {
         return RandomStringUtils.random(count, false, true);
     }
 
+    public static final String getRandomString(Integer count) {
+        return RandomStringUtils.random(count, true, true);
+    }
+
     public static boolean isEmpty(String str) {
         if(null ==  str || "".equals(str) || "null".equals(str) || "\u0000".equals(str)) {
             return true;
@@ -45,7 +49,7 @@ public class StringTools {
     public static String rename(String fileName) {
         String fileNameReal = getFileNameNoSuffix(fileName);
         String suffix = getFileSuffix(fileName);
-        return fileNameReal + "_" + getRandomNumber(Constants.LENGTH_5) + suffix;
+        return fileNameReal + "_" + getRandomString(Constants.LENGTH_5) + suffix;
     }
 
     public static String getFileNameNoSuffix(String fileName) {

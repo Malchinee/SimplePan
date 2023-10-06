@@ -54,7 +54,7 @@ public class FileInfoController extends ABaseController{
 		return getSuccessResponseVO(convert2PaginationVO(resultVO, FileInfoVO.class));
 	}
 
-	@RequestMapping("uploadFile")
+	@RequestMapping("/uploadFile")
 	@GlobalInterceptor(checkParams = true)
 	public ResponseVO uploadFile(HttpSession session,
 								 String fileId,
