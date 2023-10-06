@@ -4,6 +4,9 @@ import org.springframework.stereotype.Component;
 import top.malchinee.simplepan.entity.constants.Constants;
 import top.malchinee.simplepan.entity.dto.SysSettingsDto;
 import top.malchinee.simplepan.entity.dto.UserSpaceDto;
+import top.malchinee.simplepan.entity.po.FileInfo;
+import top.malchinee.simplepan.entity.query.FileInfoQuery;
+import top.malchinee.simplepan.mappers.FileInfoMapper;
 
 import javax.annotation.Resource;
 
@@ -12,6 +15,9 @@ public class RedisComponent {
 
     @Resource
     private RedisUtils redisUtils;
+
+    @Resource
+    private FileInfoMapper<FileInfo, FileInfoQuery> fileInfoMapper;
 
     public SysSettingsDto getSysSettingsDto() {
         SysSettingsDto sysSettingsDto = (SysSettingsDto) redisUtils.get(Constants.REDIS_KEY_SYS_SETTING);
@@ -22,19 +28,65 @@ public class RedisComponent {
         return sysSettingsDto;
     }
 
+    /**
+     * 保存已使用空间
+     * @param userId
+     * @param userSpaceDto
+     */
     public void saveUserSpaceUse(String userId, UserSpaceDto userSpaceDto) {
         redisUtils.setex(Constants.REDIS_KEY_USER_SPACE_USE + userId, userSpaceDto, Constants.REDIS_KEY_EXPIRES_DAY);
     }
 
+    /**
+     * 获得用户使用的空间
+     * @param userId
+     * @return
+     */
     public UserSpaceDto getUserSpaceUse(String userId) {
         UserSpaceDto spaceDto = (UserSpaceDto) redisUtils.get(Constants.REDIS_KEY_USER_SPACE_USE + userId);
         if(spaceDto == null) {
             spaceDto = new UserSpaceDto();
-            // TODO 查询当前用户已经上传文件大小总和
-            spaceDto.setUseSpace(0L);
+            Long useSpace = fileInfoMapper.selectUseSpace(userId);
+            spaceDto.setUseSpace(useSpace);
             spaceDto.setTotalSpace(getSysSettingsDto().getUserInitUseSpace() * Constants.MB);
-            saveUserSpaceUse(userId, spaceDto);
+            redisUtils.setex(Constants.REDIS_KEY_USER_SPACE_USE + userId, spaceDto, Constants.REDIS_KEY_EXPIRES_DAY);
         }
         return spaceDto;
+    }
+
+    /**
+     * 获得临时文件大小
+     * @param userId
+     * @param fileId
+     * @return
+     */
+    public Long getFileTempSize(String userId, String fileId) {
+        Long currentSize = getFileSizeFromRedis(Constants.REDIS_KEY_USER_FILE_TEMP_SIZE + userId + fileId);
+        return currentSize;
+    }
+
+    /**
+     * 保存文件临时大小
+     * @param userId
+     * @param fileId
+     * @param fileSize
+     */
+    public void saveFileTempSize(String userId, String fileId, Long fileSize) {
+        Long currentSize = getFileTempSize(userId, fileId);
+        redisUtils.setex(Constants.REDIS_KEY_USER_FILE_TEMP_SIZE + userId + fileId, currentSize + fileSize, Constants.REDIS_KEY_EXPIRES_ONE_HOUR);
+    }
+
+
+    private Long getFileSizeFromRedis(String key) {
+        Object sizeObj = redisUtils.get(key);
+        if(sizeObj == null) {
+            return 0L;
+        }
+        if(sizeObj instanceof Integer) {
+            return ((Integer)sizeObj).longValue();
+        }else if(sizeObj instanceof Long) {
+            return (Long)sizeObj;
+        }
+        return 0L;
     }
 }
