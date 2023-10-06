@@ -28,10 +28,20 @@ public class RedisComponent {
         return sysSettingsDto;
     }
 
+    /**
+     * 保存已使用空间
+     * @param userId
+     * @param userSpaceDto
+     */
     public void saveUserSpaceUse(String userId, UserSpaceDto userSpaceDto) {
         redisUtils.setex(Constants.REDIS_KEY_USER_SPACE_USE + userId, userSpaceDto, Constants.REDIS_KEY_EXPIRES_DAY);
     }
 
+    /**
+     * 获得用户使用的空间
+     * @param userId
+     * @return
+     */
     public UserSpaceDto getUserSpaceUse(String userId) {
         UserSpaceDto spaceDto = (UserSpaceDto) redisUtils.get(Constants.REDIS_KEY_USER_SPACE_USE + userId);
         if(spaceDto == null) {
@@ -39,19 +49,31 @@ public class RedisComponent {
             Long useSpace = fileInfoMapper.selectUseSpace(userId);
             spaceDto.setUseSpace(useSpace);
             spaceDto.setTotalSpace(getSysSettingsDto().getUserInitUseSpace() * Constants.MB);
-            saveUserSpaceUse(userId, spaceDto);
+            redisUtils.setex(Constants.REDIS_KEY_USER_SPACE_USE + userId, spaceDto, Constants.REDIS_KEY_EXPIRES_DAY);
         }
         return spaceDto;
     }
 
+    /**
+     * 获得临时文件大小
+     * @param userId
+     * @param fileId
+     * @return
+     */
     public Long getFileTempSize(String userId, String fileId) {
         Long currentSize = getFileSizeFromRedis(Constants.REDIS_KEY_USER_FILE_TEMP_SIZE + userId + fileId);
         return currentSize;
     }
 
+    /**
+     * 保存文件临时大小
+     * @param userId
+     * @param fileId
+     * @param fileSize
+     */
     public void saveFileTempSize(String userId, String fileId, Long fileSize) {
         Long currentSize = getFileTempSize(userId, fileId);
-        redisUtils.setex(Constants.REDIS_KEY_USER_FILE_TEMP_SIZE + userId + fileId, currentSize, Constants.REDIS_KEY_EXPIRES_ONE_HOUR);
+        redisUtils.setex(Constants.REDIS_KEY_USER_FILE_TEMP_SIZE + userId + fileId, currentSize + fileSize, Constants.REDIS_KEY_EXPIRES_ONE_HOUR);
     }
 
 

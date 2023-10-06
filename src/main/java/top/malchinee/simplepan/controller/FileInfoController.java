@@ -2,6 +2,10 @@ package top.malchinee.simplepan.controller;
 
 import java.util.List;
 
+import com.alibaba.fastjson.JSON;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.multipart.MultipartFile;
 import top.malchinee.simplepan.annotation.GlobalInterceptor;
 import top.malchinee.simplepan.annotation.VerifyParam;
@@ -20,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 /**
@@ -27,7 +32,9 @@ import javax.servlet.http.HttpSession;
  */
 @RestController("fileInfoController")
 @RequestMapping("/file")
-public class FileInfoController extends ABaseController{
+public class FileInfoController extends CommonFileController{
+
+	private static final Logger logger = LoggerFactory.getLogger(FileInfoController.class);
 
 	@Resource
 	private FileInfoService fileInfoService;
@@ -42,7 +49,6 @@ public class FileInfoController extends ABaseController{
 	@RequestMapping("/loadDataList")
 	@GlobalInterceptor
 	public ResponseVO loadDataList(HttpSession session, FileInfoQuery query, String category) {
-
 		FileCategoryEnums categoryEnums = FileCategoryEnums.getByCode(category);
 		if(null != categoryEnums) {
 			query.setFileCategory(categoryEnums.getCategory());
@@ -50,6 +56,7 @@ public class FileInfoController extends ABaseController{
 		query.setUserId(getUserInfoFromSession(session).getUserId());
 		query.setOrderBy("last_update_time desc");
 		query.setDelFlag(FileDelFlagEnums.USING.getFlag());
+		logger.info("query:{}", JSON.toJSONString(query));
 		PaginationResultVO resultVO = fileInfoService.findListByPage(query);
 		return getSuccessResponseVO(convert2PaginationVO(resultVO, FileInfoVO.class));
 	}
@@ -66,7 +73,12 @@ public class FileInfoController extends ABaseController{
 								 @VerifyParam(required = true) Integer chunks) {
 		SessionWebUserDto webUserDto = getUserInfoFromSession(session);
 		UploadResultDto uploadResultDto = fileInfoService.uploadFile(webUserDto, fileId, file, fileName, filePid, fileMd5, chunkIndex, chunks);
-
+		logger.info("filePid:{}", filePid);
 		return getSuccessResponseVO(uploadResultDto);
+	}
+
+	@RequestMapping("/getImage/{imageFolder}/{imageName}")
+	public void getImage(HttpServletResponse response, @PathVariable("imageFolder") String imageFolder, @PathVariable("imageName") String imageName) {
+		super.getImage(response, imageFolder, imageName);
 	}
 }
